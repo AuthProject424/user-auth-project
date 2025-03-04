@@ -7,8 +7,9 @@
 # ----------------------------
 sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'ThisIsNotSecurePLeaseFix';" # TODO Replace plain text password
 sudo mysql -e "DELETE FROM mysql.user WHERE User='';"
-sudo mysql -e "DROP DATABASE IF EXISTS test;"
 sudo mysql -e "FLUSH PRIVILEGES;"
+# Maybe remove comment in prod
+# sudo mysql -e "DROP DATABASE IF EXISTS test;" 
 
 # ----------------------------
 # IPTables Firewall Configuration
