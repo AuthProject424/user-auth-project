@@ -8,13 +8,13 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
-//Register Download Route
-const downloadRoute = require("./routes/download.route");
-app.use("/", downloadRoute);
-
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Register Download Route
+const downloadRoute = require("./routes/download.route");
+app.use("/downloads", downloadRoute);
 
 // Function to schedule resetting of security question attempts after 3 minutes
 const scheduleSecurityQuestionsReset = async (userId) => {
@@ -238,21 +238,137 @@ app.post('/api/auth/security-questions-signup', validateSecurityQuestions, async
 // Email verification endpoint (for signup)
 app.post('/api/auth/verify-email-signup', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, email, token } = req.body;
     
+    // If token is provided, this is a verification attempt
+    if (token) {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.userId;
+
+      // Check if token exists and is valid
+      const tokenResult = await query(
+        'SELECT * FROM email_verification_tokens WHERE user_id = $1 AND token = $2 AND expires_at > NOW()',
+        [userId, token]
+      );
+
+      if (tokenResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      // Update user's email verification status
+      await query(
+        'UPDATE users SET is_email_verified = true WHERE id = $1',
+        [userId]
+      );
+
+      // Delete used token
+      await query(
+        'DELETE FROM email_verification_tokens WHERE user_id = $1 AND token = $2',
+        [userId, token]
+      );
+
+      logDatabaseOperation('Email Confirmed', { userId });
+      
+      return res.json({
+        success: true,
+        message: 'Email confirmed successfully'
+      });
+    }
+
+    // If email is provided, this is a resend request
+    if (email) {
+      // Get user ID from email
+      const userResult = await query(
+        'SELECT id FROM users WHERE email = $1',
+        [email]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const userId = userResult.rows[0].id;
+
+      // Generate new verification token
+      const verificationToken = jwt.sign(
+        { userId },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Delete any existing tokens for this user
+      await query(
+        'DELETE FROM email_verification_tokens WHERE user_id = $1',
+        [userId]
+      );
+
+      // Store new verification token
+      await query(
+        'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'24 hours\')',
+        [userId, verificationToken]
+      );
+
+      // Create verification link
+      const verificationLink = `${process.env.FRONTEND_URL}/confirm-email?token=${verificationToken}`;
+
+      // Send verification email
+      await sendEmail(email, verificationLink);
+
+      logDatabaseOperation('Verification Email Resent', { userId, email });
+      
+      return res.json({
+        success: true,
+        message: 'Verification email resent successfully'
+      });
+    }
+
+    return res.status(400).json({ error: 'Invalid request' });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// New endpoint to confirm email
+app.post('/api/auth/confirm-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    // Check if token exists and is valid
+    const tokenResult = await query(
+      'SELECT * FROM email_verification_tokens WHERE user_id = $1 AND token = $2 AND expires_at > NOW()',
+      [userId, token]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // Update user's email verification status
     await query(
       'UPDATE users SET is_email_verified = true WHERE id = $1',
       [userId]
     );
 
-    logDatabaseOperation('Email Verified', { userId });
+    // Delete used token
+    await query(
+      'DELETE FROM email_verification_tokens WHERE user_id = $1 AND token = $2',
+      [userId, token]
+    );
+
+    logDatabaseOperation('Email Confirmed', { userId });
     
     res.json({
       success: true,
-      message: 'Email verified successfully'
+      message: 'Email confirmed successfully'
     });
   } catch (error) {
-    console.error('Email verification error:', error);
+    console.error('Email confirmation error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

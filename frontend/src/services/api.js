@@ -1,4 +1,5 @@
 const API_BASE_URL = 'http://localhost:3001/api';
+const BASE_URL = 'http://localhost:3001'; // For non-API endpoints
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -89,6 +90,18 @@ export const authAPI = {
     return handleResponse(response);
   },
 
+  // Resend Verification Email
+  resendVerificationEmail: async (email) => {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-email-signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(response);
+  },
+
   // Password Reset Request
   requestPasswordReset: async (email) => {
     const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
@@ -163,5 +176,32 @@ export const authAPI = {
       }
     });
     return handleResponse(response);
+  },
+
+  // Download confidential file
+  downloadFile: async () => {
+    const token = JSON.parse(localStorage.getItem("authState"))?.token;
+    if (!token) throw new Error("No authentication token found");
+
+    const response = await fetch(`${BASE_URL}/downloads`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Download failed');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "company_confidential_file.txt";  // Set the default filename
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 }; 

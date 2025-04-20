@@ -1,5 +1,6 @@
 import React from 'react';
 import useAuthStore from '../store/authStore';
+import { authAPI } from '../services/api';
 
 const WelcomePage = () => {
   const { user, logout } = useAuthStore();
@@ -11,43 +12,15 @@ const WelcomePage = () => {
     return date.toLocaleString();
   };
 
-// Download Handle for secure download
-const handleDownload = async () => {
-  try {
-    const authState = JSON.parse(localStorage.getItem("authState"));
-    const token = authState?.token;
-
-    if (!token) {
-      alert("You must be logged in to download the file.");
-      return;
+  // Download Handle for secure download
+  const handleDownload = async () => {
+    try {
+      await authAPI.downloadFile();
+    } catch (error) {
+      console.error("Download error:", error);
+      alert(error.message || "An unexpected error occurred while downloading the file.");
     }
-
-    const response = await fetch("/download", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      alert("Failed to download file. You may not be authorized.");
-      return;
-    }
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "secret_company_file.txt";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Download error:", error);
-    alert("An unexpected error occurred while downloading the file.");
-  }
-};
+  };
 
   return (
     <div style={styles.container}>
