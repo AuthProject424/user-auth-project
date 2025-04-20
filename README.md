@@ -20,7 +20,7 @@ Below is the authentication workflow for this project:
   - Security questions for password recovery.
 - **Forgot Username or Password?** feature for secure recovery options.
 
-#### 2. Personalized User Dashboard (Finished)
+### 2. Personalized User Dashboard (Finished)
 - After logging in, users will see:  
   - **Personalized greeting**: "Hi, (First Name Last Name)"  
   - **Login history**: "You have logged in X times."  
