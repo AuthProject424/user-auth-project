@@ -15,9 +15,24 @@ const ConfirmEmailPage = () => {
       if (token) {
         try {
           await verifySignupEmail(token);
-          navigate('/?emailVerified=true');
+          // Dispatch toast event before navigation
+          window.dispatchEvent(new CustomEvent('showToast', {
+            detail: {
+              message: 'Thank you! Your email has been successfully confirmed. Please login.',
+              type: 'success'
+            }
+          }));
+          // Navigate to login page
+          navigate('/login');
         } catch (error) {
-          navigate('/?emailVerified=false');
+          // Dispatch error toast before navigation
+          window.dispatchEvent(new CustomEvent('showToast', {
+            detail: {
+              message: 'Failed to verify email. Please try again.',
+              type: 'error'
+            }
+          }));
+          navigate('/login');
         }
       }
     };
@@ -36,7 +51,7 @@ const ConfirmEmailPage = () => {
   };
 
   const handleReturnToLogin = () => {
-    navigate('/');
+    navigate('/login');
   };
 
   return (

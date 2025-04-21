@@ -72,10 +72,29 @@ const SecurityQuestionsPageSignup = () => {
 
     try {
       console.log('Submitting security questions...');
-      const securityQuestionsData = selectedQuestions.map((questionId, index) => ({
-        questionId,
-        answer: answers[index]
-      }));
+      
+      // Get the userId directly from localStorage parsing the authState
+      const authState = JSON.parse(localStorage.getItem('authState')) || {};
+      const userId = authState.userId;
+      
+      if (!userId) {
+        console.error('User ID not found in localStorage, redirecting to signup');
+        navigate('/signup');
+        return;
+      }
+      
+      console.log('Using userId:', userId);
+      
+      // Format the data as required by the backend
+      const securityQuestionsData = {
+        userId: userId,
+        question1: selectedQuestions[0],
+        answer1: answers[0],
+        question2: selectedQuestions[1],
+        answer2: answers[1],
+        question3: selectedQuestions[2],
+        answer3: answers[2]
+      };
 
       await submitSecurityQuestions(securityQuestionsData);
       console.log('Security questions submitted successfully');

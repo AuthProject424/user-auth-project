@@ -5,6 +5,7 @@ const { query } = require('./config/db');
 const { logDatabaseOperation } = require('./utils/logger');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { sendEmail } = require('./utils/emailTransport');
 
 const app = express();
 
@@ -225,6 +226,44 @@ app.post('/api/auth/security-questions-signup', validateSecurityQuestions, async
 
     logDatabaseOperation('Security Questions Added', { userId });
     
+    // Get user email from userId
+    const userResult = await query(
+      'SELECT email FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length > 0) {
+      const email = userResult.rows[0].email;
+      
+      // Generate verification token
+      const verificationToken = jwt.sign(
+        { userId },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      // Delete any existing tokens for this user
+      await query(
+        'DELETE FROM email_verification_tokens WHERE user_id = $1',
+        [userId]
+      );
+      
+      // Store new verification token
+      await query(
+        'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'24 hours\')',
+        [userId, verificationToken]
+      );
+      
+      // Create verification link
+      const verificationLink = `${process.env.FRONTEND_URL}/confirm-email?token=${verificationToken}`;
+      
+      // Send verification email with confirmation type
+      await sendEmail(email, verificationLink, 'confirmation');
+      
+      // Email confirmation sent after security questions
+      logDatabaseOperation('Email Confirmation Sent', { userId, emailAddress: email });
+    }
+    
     res.json({
       success: true,
       message: 'Security questions submitted successfully'
@@ -268,9 +307,17 @@ app.post('/api/auth/verify-email-signup', async (req, res) => {
         [userId, token]
       );
 
-      logDatabaseOperation('Email Confirmed', { userId });
+      // Get user email for logging
+      const userResult = await query(
+        'SELECT email FROM users WHERE id = $1',
+        [userId]
+      );
       
-      return res.json({
+      const email = userResult.rows.length > 0 ? userResult.rows[0].email : 'unknown';
+      
+      logDatabaseOperation('Email Confirmed', { userId, emailAddress: email });
+      
+      res.json({
         success: true,
         message: 'Email confirmed successfully'
       });
@@ -312,10 +359,10 @@ app.post('/api/auth/verify-email-signup', async (req, res) => {
       // Create verification link
       const verificationLink = `${process.env.FRONTEND_URL}/confirm-email?token=${verificationToken}`;
 
-      // Send verification email
-      await sendEmail(email, verificationLink);
+      // Send verification email with resend confirmation type
+      await sendEmail(email, verificationLink, 'resendConfirmation');
 
-      logDatabaseOperation('Verification Email Resent', { userId, email });
+      logDatabaseOperation('Verification Email Resent', { userId, emailAddress: email });
       
       return res.json({
         success: true,
@@ -361,7 +408,15 @@ app.post('/api/auth/confirm-email', async (req, res) => {
       [userId, token]
     );
 
-    logDatabaseOperation('Email Confirmed', { userId });
+    // Get user email for logging
+    const userResult = await query(
+      'SELECT email FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    const email = userResult.rows.length > 0 ? userResult.rows[0].email : 'unknown';
+    
+    logDatabaseOperation('Email Confirmed', { userId, emailAddress: email });
     
     res.json({
       success: true,
@@ -410,7 +465,7 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
       [userId, token]
     );
 
-    logDatabaseOperation('Password Reset Requested', { email });
+    logDatabaseOperation('Password Reset Requested', { userId, emailAddress: email });
     
     res.json({
       success: true,
@@ -550,7 +605,8 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
       [user.id, email, 'success']
     );
 
-    logDatabaseOperation('Security Questions Verified', { email });
+    // Security questions verified
+    logDatabaseOperation('Security Questions Verified', { userId, emailAddress: email });
     
     res.json({
       success: true
@@ -595,8 +651,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     // Log the password reset with more details
     logDatabaseOperation('Password Reset Successfully Completed', { 
-      email,
       userId,
+      emailAddress: email,
       timestamp: new Date().toISOString()
     });
     

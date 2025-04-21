@@ -1,34 +1,59 @@
 const nodemailer = require('nodemailer');
-
+const dotenv = require('dotenv');
 // Create a transporter object using SMTP transport
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // Using Gmail as the email service
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // true for 465, false for other ports
     auth: {
-        user: process.env.EMAIL_USER, // Email address
-        pass: process.env.EMAIL_PASSWORD // App password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
-// Generic email template
-const createEmailContent = (link) => ({
-    subject: 'Auth424: Finish your sign up',
-    text: 'Please finish your sign up by clicking the link here: ' + link,
-    html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Auth424: Finish your sign up</h2>
-            <p>Please finish your sign up by clicking the button below:</p>
-            <a href="${link}" 
-               style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">
-                Complete Sign Up
-            </a>
-        </div>
-    `
-});
+// Email templates
+const emailTemplates = {
+    confirmation: (link) => ({
+        subject: 'Auth424: Confirm Your Email',
+        text: `Please confirm your email by clicking the link here: ${link}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Auth424: Confirm Your Email</h2>
+                <p>Please confirm your email by clicking the button below:</p>
+                <a href="${link}" 
+                   style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">
+                    Confirm Email
+                </a>
+                <p>If you didn't request this email, you can safely ignore it.</p>
+            </div>
+        `
+    }),
+    resendConfirmation: (link) => ({
+        subject: 'Auth424: Resend Email Confirmation',
+        text: `Here's your new confirmation link: ${link}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Auth424: Resend Email Confirmation</h2>
+                <p>Here's your new confirmation link:</p>
+                <a href="${link}" 
+                   style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">
+                    Confirm Email
+                </a>
+                <p>If you didn't request this email, you can safely ignore it.</p>
+            </div>
+        `
+    })
+};
 
 // Function to send email
-const sendEmail = async (to, link) => {
+const sendEmail = async (to, link, type = 'confirmation') => {
     try {
-        const { subject, text, html } = createEmailContent(link);
+        const template = emailTemplates[type];
+        if (!template) {
+            throw new Error(`Invalid email type: ${type}`);
+        }
+
+        const { subject, text, html } = template(link);
         
         const mailOptions = {
             from: process.env.EMAIL_USER,

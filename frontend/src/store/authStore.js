@@ -137,7 +137,8 @@ const useAuthStore = create((set, get) => ({
         signupInProgress: true,
         currentStep: 'signup_started',
         isLoading: false,
-        error: null
+        error: null,
+        userId: response.userId
       };
       
       // Save state to localStorage
