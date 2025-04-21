@@ -277,103 +277,113 @@ app.post('/api/auth/security-questions-signup', validateSecurityQuestions, async
 // Email verification endpoint (for signup)
 app.post('/api/auth/verify-email-signup', async (req, res) => {
   try {
-    const { userId, email, token } = req.body;
+    const { token, email } = req.body;
     
     // If token is provided, this is a verification attempt
     if (token) {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.userId;
+      try {
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
 
-      // Check if token exists and is valid
-      const tokenResult = await query(
-        'SELECT * FROM email_verification_tokens WHERE user_id = $1 AND token = $2 AND expires_at > NOW()',
-        [userId, token]
-      );
+        // Check if token exists and is valid
+        const tokenResult = await query(
+          'SELECT * FROM email_verification_tokens WHERE user_id = $1 AND token = $2 AND expires_at > NOW()',
+          [userId, token]
+        );
 
-      if (tokenResult.rows.length === 0) {
+        if (tokenResult.rows.length === 0) {
+          return res.status(400).json({ error: 'Invalid or expired token' });
+        }
+
+        // Update user's email verification status
+        await query(
+          'UPDATE users SET is_email_verified = true WHERE id = $1',
+          [userId]
+        );
+
+        // Delete used token
+        await query(
+          'DELETE FROM email_verification_tokens WHERE user_id = $1 AND token = $2',
+          [userId, token]
+        );
+
+        // Get user email for logging
+        const userResult = await query(
+          'SELECT email FROM users WHERE id = $1',
+          [userId]
+        );
+        
+        const email = userResult.rows.length > 0 ? userResult.rows[0].email : 'unknown';
+        
+        logDatabaseOperation('Email Confirmed', { userId, emailAddress: email });
+        
+        return res.json({
+          success: true,
+          message: 'Email confirmed successfully'
+        });
+      } catch (error) {
+        console.error('Token verification error:', error);
         return res.status(400).json({ error: 'Invalid or expired token' });
       }
-
-      // Update user's email verification status
-      await query(
-        'UPDATE users SET is_email_verified = true WHERE id = $1',
-        [userId]
-      );
-
-      // Delete used token
-      await query(
-        'DELETE FROM email_verification_tokens WHERE user_id = $1 AND token = $2',
-        [userId, token]
-      );
-
-      // Get user email for logging
-      const userResult = await query(
-        'SELECT email FROM users WHERE id = $1',
-        [userId]
-      );
-      
-      const email = userResult.rows.length > 0 ? userResult.rows[0].email : 'unknown';
-      
-      logDatabaseOperation('Email Confirmed', { userId, emailAddress: email });
-      
-      res.json({
-        success: true,
-        message: 'Email confirmed successfully'
-      });
     }
 
     // If email is provided, this is a resend request
     if (email) {
-      // Get user ID from email
-      const userResult = await query(
-        'SELECT id FROM users WHERE email = $1',
-        [email]
-      );
+      try {
+        // Get user ID from email
+        const userResult = await query(
+          'SELECT id FROM users WHERE email = $1',
+          [email]
+        );
 
-      if (userResult.rows.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
+        if (userResult.rows.length === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        const userId = userResult.rows[0].id;
+
+        // Generate new verification token
+        const verificationToken = jwt.sign(
+          { userId },
+          process.env.JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        // Delete any existing tokens for this user
+        await query(
+          'DELETE FROM email_verification_tokens WHERE user_id = $1',
+          [userId]
+        );
+
+        // Store new verification token
+        await query(
+          'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'24 hours\')',
+          [userId, verificationToken]
+        );
+
+        // Create verification link
+        const verificationLink = `${process.env.FRONTEND_URL}/confirm-email?token=${verificationToken}`;
+
+        // Send verification email with resend confirmation type
+        await sendEmail(email, verificationLink, 'resendConfirmation');
+
+        logDatabaseOperation('Verification Email Resent', { userId, emailAddress: email });
+        
+        return res.json({
+          success: true,
+          message: 'Verification email resent successfully'
+        });
+      } catch (error) {
+        console.error('Resend verification error:', error);
+        return res.status(500).json({ error: 'Failed to resend verification email' });
       }
-
-      const userId = userResult.rows[0].id;
-
-      // Generate new verification token
-      const verificationToken = jwt.sign(
-        { userId },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      // Delete any existing tokens for this user
-      await query(
-        'DELETE FROM email_verification_tokens WHERE user_id = $1',
-        [userId]
-      );
-
-      // Store new verification token
-      await query(
-        'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'24 hours\')',
-        [userId, verificationToken]
-      );
-
-      // Create verification link
-      const verificationLink = `${process.env.FRONTEND_URL}/confirm-email?token=${verificationToken}`;
-
-      // Send verification email with resend confirmation type
-      await sendEmail(email, verificationLink, 'resendConfirmation');
-
-      logDatabaseOperation('Verification Email Resent', { userId, emailAddress: email });
-      
-      return res.json({
-        success: true,
-        message: 'Verification email resent successfully'
-      });
     }
 
     return res.status(400).json({ error: 'Invalid request' });
   } catch (error) {
     console.error('Email verification error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -505,12 +515,13 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
     }
     
     const user = userResult.rows[0];
+    const userId = user.id; // Get userId from the user object
     
     // Check if account is already locked
     if (user.is_security_questions_locked) {
       await query(
         'INSERT INTO password_reset_attempts (user_id, email, status, failure_reason) VALUES ($1, $2, $3, $4)',
-        [user.id, email, 'failed', 'Account locked due to too many failed attempts']
+        [userId, email, 'failed', 'Account locked due to too many failed attempts']
       );
       
       return res.status(429).json({ 
@@ -523,7 +534,7 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
     const result = await query(
       `SELECT sq.* FROM security_questions sq 
        WHERE sq.user_id = $1`,
-      [user.id]
+      [userId]
     );
     
     if (result.rows.length === 0) {
@@ -531,7 +542,7 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
       console.log(`Security questions not found for user: ${email}`);
       await query(
         'INSERT INTO password_reset_attempts (user_id, email, status, failure_reason) VALUES ($1, $2, $3, $4)',
-        [user.id, email, 'failed', 'Security questions not found']
+        [userId, email, 'failed', 'Security questions not found']
       );
       
       return res.status(200).json({ 
@@ -565,19 +576,19 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
       if (remainingAttempts === 0) {
         isLocked = true;
         // Schedule reset after 3 minutes
-        scheduleSecurityQuestionsReset(user.id);
+        scheduleSecurityQuestionsReset(userId);
       }
       
       // Update the user's attempts counter and lock status
       await query(
         'UPDATE users SET remaining_security_question_attempts = $1, is_security_questions_locked = $2 WHERE id = $3',
-        [remainingAttempts, isLocked, user.id]
+        [remainingAttempts, isLocked, userId]
       );
       
       // Log failed attempt
       await query(
         'INSERT INTO password_reset_attempts (user_id, email, status, failure_reason) VALUES ($1, $2, $3, $4)',
-        [user.id, email, 'failed', 'Incorrect security answers']
+        [userId, email, 'failed', 'Incorrect security answers']
       );
       
       if (isLocked) {
@@ -596,13 +607,13 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
     // Reset the attempts counter on successful verification
     await query(
       'UPDATE users SET remaining_security_question_attempts = 3, is_security_questions_locked = FALSE WHERE id = $1',
-      [user.id]
+      [userId]
     );
     
     // Log successful attempt
     await query(
       'INSERT INTO password_reset_attempts (user_id, email, status) VALUES ($1, $2, $3)',
-      [user.id, email, 'success']
+      [userId, email, 'success']
     );
 
     // Security questions verified
