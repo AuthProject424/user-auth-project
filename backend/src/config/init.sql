@@ -1,8 +1,10 @@
 -- Drop existing tables
-DROP TABLE IF EXISTS password_reset_tokens;
-DROP TABLE IF EXISTS security_questions;
-DROP TABLE IF EXISTS login_history;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS password_reset_tokens CASCADE;
+DROP TABLE IF EXISTS security_questions CASCADE;
+DROP TABLE IF EXISTS login_history CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS email_verification_tokens CASCADE;
+DROP TABLE IF EXISTS password_reset_attempts CASCADE;
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (
@@ -65,4 +67,13 @@ CREATE TABLE IF NOT EXISTS password_reset_attempts (
     ip_address VARCHAR(45),
     status VARCHAR(20) NOT NULL, -- 'success' or 'failed'
     failure_reason VARCHAR(255) -- null for successful attempts
+);
+
+-- Create email_verification_tokens table
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    token TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ); 

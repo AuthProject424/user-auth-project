@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 
@@ -6,6 +6,8 @@ const ConfirmEmailPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { verifySignupEmail, isLoading, error } = useAuthStore();
+  const [resendStatus, setResendStatus] = useState({ success: false, error: null });
+  const [email, setEmail] = useState(localStorage.getItem('signupEmail') || '');
   
   useEffect(() => {
     const verifyEmail = async () => {
@@ -13,11 +15,24 @@ const ConfirmEmailPage = () => {
       if (token) {
         try {
           await verifySignupEmail(token);
-          // Redirect to login with verification status
-          navigate('/?emailVerified=true');
+          // Dispatch toast event before navigation
+          window.dispatchEvent(new CustomEvent('showToast', {
+            detail: {
+              message: 'Thank you! Your email has been successfully confirmed. Please login.',
+              type: 'success'
+            }
+          }));
+          // Navigate to login page
+          navigate('/login');
         } catch (error) {
-          // Redirect to login with error status
-          navigate('/?emailVerified=false');
+          // Dispatch error toast before navigation
+          window.dispatchEvent(new CustomEvent('showToast', {
+            detail: {
+              message: 'Failed to verify email. Please try again.',
+              type: 'error'
+            }
+          }));
+          navigate('/login');
         }
       }
     };
@@ -25,8 +40,18 @@ const ConfirmEmailPage = () => {
     verifyEmail();
   }, [location, navigate, verifySignupEmail]);
 
+  const handleResendEmail = async () => {
+    try {
+      setResendStatus({ success: false, error: null });
+      await authAPI.resendVerificationEmail(email);
+      setResendStatus({ success: true, error: null });
+    } catch (error) {
+      setResendStatus({ success: false, error: error.message });
+    }
+  };
+
   const handleReturnToLogin = () => {
-    navigate('/');
+    navigate('/login');
   };
 
   return (
@@ -45,8 +70,26 @@ const ConfirmEmailPage = () => {
         <p style={styles.redirectInfo}>
           After confirming your email, you will be automatically redirected to the login page.
         </p>
+        
+        {/* Resend Email Button */}
         <button 
-          style={styles.button}
+          style={styles.resendButton}
+          onClick={handleResendEmail}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Sending...' : 'Resend Verification Email'}
+        </button>
+
+        {resendStatus.success && (
+          <p style={styles.successMessage}>Verification email resent successfully!</p>
+        )}
+        {resendStatus.error && (
+          <p style={styles.errorMessage}>{resendStatus.error}</p>
+        )}
+
+        {/* Return to Login Button */}
+        <button 
+          style={styles.returnButton}
           onClick={handleReturnToLogin}
         >
           Return to Login
@@ -100,7 +143,7 @@ const styles = {
         marginBottom: '30px',
         fontStyle: 'italic',
     },
-    button: {
+    resendButton: {
         backgroundColor: '#4285f4',
         color: 'white',
         border: 'none',
@@ -109,6 +152,27 @@ const styles = {
         fontSize: '16px',
         cursor: 'pointer',
         transition: 'background-color 0.3s',
+        marginBottom: '20px',
+        width: '100%',
+    },
+    returnButton: {
+        backgroundColor: 'transparent',
+        color: '#4285f4',
+        border: '1px solid #4285f4',
+        borderRadius: '4px',
+        padding: '12px 24px',
+        fontSize: '16px',
+        cursor: 'pointer',
+        transition: 'background-color 0.3s',
+        width: '100%',
+    },
+    successMessage: {
+        color: '#4CAF50',
+        margin: '10px 0',
+    },
+    errorMessage: {
+        color: '#f44336',
+        margin: '10px 0',
     }
 };
 
