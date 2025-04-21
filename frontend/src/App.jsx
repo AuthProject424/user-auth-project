@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Toast from './components/Toast';
 
 // Private
@@ -26,8 +26,17 @@ import RouteGuard from './components/RouteGuard';
 import useAuthStore from './store/authStore';
 
 const AppContent = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, token } = useAuthStore();
   const [toast, setToast] = useState(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    console.log('AppContent - Route Change:', {
+      path: location.pathname,
+      isAuthenticated,
+      hasToken: !!token
+    });
+  }, [location.pathname, isAuthenticated, token]);
 
   useEffect(() => {
     const handleToast = (event) => {
