@@ -63,20 +63,20 @@ const AppContent = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={
-          <RouteGuard redirectTo="/welcome">
+          <ProtectedRoute requiredAuth={false} redirectTo="/welcome">
             <Login />
-          </RouteGuard>
+          </ProtectedRoute>
         } />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/signup" element={
-          <RouteGuard redirectTo="/welcome">
+          <ProtectedRoute requiredAuth={false} redirectTo="/welcome">
             <Signup />
-          </RouteGuard>
+          </ProtectedRoute>
         } />
         <Route path="/send-reset-link" element={
-          <RouteGuard redirectTo="/welcome">
+          <ProtectedRoute requiredAuth={false} redirectTo="/welcome">
             <SendResetLinkPage />
-          </RouteGuard>
+          </ProtectedRoute>
         } />
         <Route path="/locked-out" element={<LockedOutPage />} />
 
