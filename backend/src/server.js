@@ -6,6 +6,9 @@ const { logDatabaseOperation } = require('./utils/logger');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sendEmail } = require('./utils/emailTransport');
+const initializeDatabase = require('./config/init-db');
+const createTestUser = require('./scripts/create-test-user');
+
 
 const app = express();
 
@@ -719,6 +722,18 @@ app.post('/api/auth/check-lockout', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+
+(async () => {
+  try {
+    await initializeDatabase();    // Step 1: Reset DB
+    await createTestUser();        // Step 2: Insert test user
+
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Startup failed:', err);
+    process.exit(1);
+  }
+})();

@@ -12,8 +12,8 @@ async function initializeDatabase() {
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
-initializeDatabase(); 
+module.exports = initializeDatabase;

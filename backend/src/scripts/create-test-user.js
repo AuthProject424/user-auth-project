@@ -45,6 +45,7 @@ async function createTestUser() {
     console.log('Security questions added for test user');
   } catch (error) {
     console.error('Error creating test user:', error);
+    throw error;
   }
 }
 
