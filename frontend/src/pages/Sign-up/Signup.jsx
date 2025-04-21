@@ -76,7 +76,15 @@ const Signup = () => {
     }
 
     try {
-      await signupAndRedirect(formData);
+      // Format birthday from MM/DD/YYYY to YYYY-MM-DD
+      const [month, day, year] = formData.birthday.split('/');
+      const formattedData = {
+        ...formData,
+        birthday: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+      };
+
+      console.log('Submitting signup data:', formattedData);
+      await signupAndRedirect(formattedData);
     } catch (error) {
       console.error('Signup failed:', error);
     }
@@ -317,7 +325,9 @@ const styles = {
   input: {
     padding: '1rem',
     borderRadius: '4px',
-    border: '1px solid #ccc',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#ccc',
     fontSize: '1rem',
     outline: 'none',
     width: '100%',
@@ -401,6 +411,8 @@ const styles = {
     marginBottom: '0.5rem',
   },
   inputError: {
+    borderWidth: '1px',
+    borderStyle: 'solid',
     borderColor: '#ff3333',
     backgroundColor: '#fff8f8',
   },
