@@ -49,4 +49,4 @@ async function createTestUser() {
   }
 }
 
-createTestUser(); 
+module.exports = createTestUser;
