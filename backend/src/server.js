@@ -8,7 +8,8 @@ const jwt = require('jsonwebtoken');
 const { sendEmail } = require('./utils/emailTransport');
 const initializeDatabase = require('./config/init-db');
 const createTestUser = require('./scripts/create-test-user');
-
+const axios = require('axios');
+require('dotenv').config();
 
 const app = express();
 
@@ -41,7 +42,24 @@ const scheduleSecurityQuestionsReset = async (userId) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    const recaptchaToken = req.body['g-recaptcha-response'];
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'reCAPTCHA token is missing' });
+    }
+    try {
+      const secretKey = process.env.RECAPTCHA_SECRET; // Store this in .env
+      const verificationURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
     
+      const recaptchaResponse = await axios.post(verificationURL);
+      const recaptchaData = recaptchaResponse.data;
+    
+      if (!recaptchaData.success) {
+        return res.status(403).json({ error: 'Failed reCAPTCHA verification' });
+      }
+    } catch (err) {
+      console.error('reCAPTCHA verification error:', err.message);
+      return res.status(500).json({ error: 'Error verifying reCAPTCHA' });
+    }
     // Get user from database
     const result = await query(
       'SELECT * FROM users WHERE username = $1',
@@ -152,7 +170,24 @@ app.post('/api/auth/signup', validateSignup, async (req, res) => {
       lastName,
       birthday
     } = req.body;
+    const recaptchaToken = req.body['g-recaptcha-response'];
 
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'reCAPTCHA token missing' });
+    }
+    
+    try {
+      const secretKey = process.env.RECAPTCHA_SECRET;
+      const verificationURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
+    
+      const recaptchaResponse = await axios.post(verificationURL);
+      if (!recaptchaResponse.data.success) {
+        return res.status(403).json({ error: 'Failed reCAPTCHA verification' });
+      }
+    } catch (err) {
+      console.error('Signup reCAPTCHA error:', err.message);
+      return res.status(500).json({ error: 'Error verifying reCAPTCHA' });
+    }
     // Verify passwords match
     if (password !== confirmPassword) {
       return res.status(400).json({ error: 'Passwords do not match' });
