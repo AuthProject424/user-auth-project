@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import { validateField, passwordRequirements } from '../../utils/validation';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,8 @@ const Signup = () => {
   const [showPasswords, setShowPasswords] = useState(false);
   const navigate = useNavigate();
   const { signupAndRedirect, isLoading, error } = useAuthStore();
+  const [recaptchaToken, setRecaptchaToken] = useState('');
+  const [recaptchaError, setRecaptchaError] = useState('');
   
   const passwordValidation = Object.keys(passwordRequirements).reduce((acc, key) => ({
     ...acc,
@@ -84,7 +87,17 @@ const Signup = () => {
       };
 
       console.log('Submitting signup data:', formattedData);
-      await signupAndRedirect(formattedData);
+      if (!recaptchaToken) {
+        setRecaptchaError('Please complete the reCAPTCHA.');
+        return;
+      } else {
+        setRecaptchaError('');
+      }      
+      
+      await signupAndRedirect({
+        ...formattedData,
+        'g-recaptcha-response': recaptchaToken
+      });
     } catch (error) {
       console.error('Signup failed:', error);
     }
@@ -267,7 +280,11 @@ const Signup = () => {
               <div style={styles.fieldError}>{formErrors.birthday}</div>
             }
           </div>
-
+          <ReCAPTCHA
+             sitekey="6LfpLCArAAAAALhrscSXMcpQcz9qv2DbU0k-ucEn"
+             onChange={(token) => setRecaptchaToken(token)}
+          />
+          {recaptchaError && <div style={styles.fieldError}>{recaptchaError}</div>}
           <button 
             type="submit" 
             style={styles.button}
