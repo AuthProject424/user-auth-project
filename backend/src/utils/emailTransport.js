@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
+
 // Create a transporter object using SMTP transport
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -59,17 +60,6 @@ const sendEmail = async (to, link, type = 'confirmation') => {
         }
 
         const { subject, text, html } = template(link);
-        
-        // Move transporter creation inside the production block
-        const transporter = nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: process.env.EMAIL_PORT,
-            secure: false, // true for 465, false for 587
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        });
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
