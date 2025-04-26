@@ -564,13 +564,17 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
     
     // Verify answers using question IDs
     let correctAnswers = 0;
+
+    // Hash security questions
+    const salt = await bcrypt.genSalt(10);
     
     // Check each answer
     for (const { questionId, answer } of securityAnswers) {
+      answerHash = await bcrypt.hash(answer, salt);
       if (
-        (questions.question1_id === questionId && questions.answer1 === answer) ||
-        (questions.question2_id === questionId && questions.answer2 === answer) ||
-        (questions.question3_id === questionId && questions.answer3 === answer)
+        (questions.question2_id === questionId && questions.answer2 === answerHash) ||
+        (questions.question1_id === questionId && questions.answer1 === answerHash) ||
+        (questions.question3_id === questionId && questions.answer3 === answerHash)
       ) {
         correctAnswers++;
       }
