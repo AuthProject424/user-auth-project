@@ -1,5 +1,5 @@
-const API_BASE_URL = 'https://backend-4brw.onrender.com/api';
-const BASE_URL = 'https://backend-4brw.onrender.com';
+const API_BASE_URL = 'https://auth-backend-7pl7.onrender.com/api';
+const BASE_URL = 'https://auth-backend-7pl7.onrender.com';
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   if (!response.ok) {
