@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
 import { useNavigate, useLocation } from 'react-router-dom';
-import ReCAPTCHA from 'react-google-recaptcha';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -11,8 +10,6 @@ const Login = () => {
   const { loginAndRedirect, isLoading, error } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const [recaptchaToken, setRecaptchaToken] = useState('');
-  const [recaptchaError, setRecaptchaError] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -54,17 +51,9 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setInputErrors({});
-    if (!recaptchaToken) {
-      setRecaptchaError('Please complete the reCAPTCHA.');
-      return;
-    } else {
-      setRecaptchaError('');
-    }    
-  
     await loginAndRedirect({
-      username,
-      password,
-      'g-recaptcha-response': recaptchaToken,
+      username: username,
+      password: password
     });
   };
 
@@ -127,11 +116,6 @@ const Login = () => {
               Forgot Password?
             </span>
           </div>
-          <ReCAPTCHA
-             sitekey="6LfpLCArAAAAALhrscSXMcpQcz9qv2DbU0k-ucEn"
-             onChange={(token) => setRecaptchaToken(token)}
-          />
-          {recaptchaError && <div style={styles.fieldError}>{recaptchaError}</div>}
           <button 
             type="submit" 
             style={styles.button}

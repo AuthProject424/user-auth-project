@@ -1,15 +1,6 @@
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 // Create a transporter object using SMTP transport
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
 
 // Email templates
 const emailTemplates = {
@@ -48,6 +39,11 @@ const emailTemplates = {
 // Function to send email
 const sendEmail = async (to, link, type = 'confirmation') => {
     try {
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[DEV MODE] Skipping actual email sending.');
+            return { message: 'Skipped email sending in development.' };
+        }
+
         const template = emailTemplates[type];
         if (!template) {
             throw new Error(`Invalid email type: ${type}`);
@@ -55,6 +51,17 @@ const sendEmail = async (to, link, type = 'confirmation') => {
 
         const { subject, text, html } = template(link);
         
+        // Move transporter creation inside the production block
+        const transporter = nodemailer.createTransport({
+            host: process.env.EMAIL_HOST,
+            port: process.env.EMAIL_PORT,
+            secure: false, // true for 465, false for 587
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to,
