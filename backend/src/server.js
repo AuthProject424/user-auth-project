@@ -568,9 +568,9 @@ app.post('/api/auth/security-questions-reset', async (req, res) => {
     // Check each answer
     for (const { questionId, answer } of securityAnswers) {
       if (
-        (questions.question1_id === questionId && questions.answer1 === answer) ||
-        (questions.question2_id === questionId && questions.answer2 === answer) ||
-        (questions.question3_id === questionId && questions.answer3 === answer)
+        (questions.question1_id === questionId && bcrypt.compare(answer, questions.answer1)) ||
+        (questions.question2_id === questionId && bcrypt.compare(answer, questions.answer2)) ||
+        (questions.question3_id === questionId && bcrypt.compare(answer, questions.answer3))
       ) {
         correctAnswers++;
       }
