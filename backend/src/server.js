@@ -220,11 +220,17 @@ app.post('/api/auth/security-questions-signup', validateSecurityQuestions, async
       question3,
       answer3
     } = req.body;
+
+    // Hash security questions
+    const salt = await bcrypt.genSalt(10);
+    const answer1Hash = await bcrypt.hash(answer1, salt);
+    const answer2Hash = await bcrypt.hash(answer2, salt);
+    const answer3Hash = await bcrypt.hash(answer3, salt);
     
     // Store only the question IDs
     await query(
       'INSERT INTO security_questions (user_id, question1_id, answer1, question2_id, answer2, question3_id, answer3) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [userId, question1, answer1, question2, answer2, question3, answer3]
+      [userId, question1, answer1Hash, question2, answer2Hash, question3, answer3Hash]
     );
 
     logDatabaseOperation('Security Questions Added', { userId });
