@@ -10,7 +10,7 @@ Below is the authentication workflow for this project:
 
 ## Key Features
 
-### 1. Secure User Authentication (Working on)
+### 1. Secure User Authentication (Finished)
 - A dedicated **login page** where users can enter their credentials.
 - **Sign-up process** with:
   - First and last name, birth date, and email.
@@ -27,7 +27,7 @@ Below is the authentication workflow for this project:
   - **Last login date**: "Last login date: Y."  
 - Users can download a **secure company document** (`company_confidential_file.txt`).
 
-### 3. Strong Security Measures  (developing)
+### 3. Strong Security Measures (Finished)
 - **HTTPS encryption** for secure data transmission.  
 - **Two-Factor Authentication (2FA)** (extra credit feature) for enhanced security.  
 - **Logging system** to track successful and failed login attempts.  
