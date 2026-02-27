@@ -1,15 +1,23 @@
-const express = require('express');
-const cors = require('cors');
-const { validateSignup, validateSecurityQuestions } = require('./middleware/validation');
-const { query } = require('./config/db');
-const { logDatabaseOperation } = require('./utils/logger');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { sendEmail } = require('./utils/emailTransport');
-const initializeDatabase = require('./config/init-db');
-const createTestUser = require('./scripts/create-test-user');
-const axios = require('axios');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import validation from './middleware/validation.js';
+import db from './config/db.js';
+import logger from './utils/logger.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import emailTransport from './utils/emailTransport.js';
+import initializeDatabase from './config/init-db.js';
+import createTestUser from './scripts/create-test-user.js';
+import axios from 'axios';
+import dotenv from 'dotenv';
+import downloadRoute from './routes/download.route.js';
+
+const { validateSignup, validateSecurityQuestions } = validation;
+const { query } = db;
+const { logDatabaseOperation } = logger;
+const { sendEmail } = emailTransport;
+
+dotenv.config();
 
 const app = express();
 
@@ -18,7 +26,6 @@ app.use(cors());
 app.use(express.json());
 
 // Register Download Route
-const downloadRoute = require("./routes/download.route");
 app.use("/downloads", downloadRoute);
 
 // Function to schedule resetting of security question attempts after 3 minutes
